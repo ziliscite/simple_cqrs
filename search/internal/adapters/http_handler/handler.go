@@ -33,6 +33,11 @@ func (h *handler) Run(addr string) error {
 func (h *handler) setupRoutes() {
 	h.en.GET("/products", h.SearchProduct)
 	h.en.GET("/products/:id", h.GetProduct)
+
+	// health check
+	h.en.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 }
 
 func (h *handler) GetProduct(c *gin.Context) {

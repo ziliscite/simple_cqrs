@@ -8,16 +8,21 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/ziliscite/cqrs_search/internal/domain/product"
 	"github.com/ziliscite/cqrs_search/internal/ports"
+	"strconv"
 	"time"
 )
 
 func NewRedisClient(user, password, host, port, db string) (*redis.Client, error) {
-	opts, err := redis.ParseURL(fmt.Sprintf("redis://%s:%s@%s:%s/%s?protocol=3", user, password, host, port, db))
+	d, err := strconv.Atoi(db)
 	if err != nil {
 		return nil, err
 	}
 
-	return redis.NewClient(opts), nil
+	return redis.NewClient(&redis.Options{
+		Addr:     fmt.Sprintf("%s:%s", host, port),
+		Password: "",
+		DB:       d,
+	}), nil
 }
 
 // cacher bundles read, write, and invalidate methods

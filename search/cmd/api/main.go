@@ -1,14 +1,12 @@
 package main
 
 import (
-	"context"
 	"github.com/ziliscite/cqrs_search/internal/adapters/elastic"
 	handler "github.com/ziliscite/cqrs_search/internal/adapters/http_handler"
 	"github.com/ziliscite/cqrs_search/internal/adapters/rabbitmq"
 	cache "github.com/ziliscite/cqrs_search/internal/adapters/redis_cache"
 	"github.com/ziliscite/cqrs_search/internal/application"
 	"github.com/ziliscite/cqrs_search/pkg/rabbit"
-	"time"
 )
 
 func main() {
@@ -17,17 +15,17 @@ func main() {
 	// initialize repo
 	ESClient, err := elastic.NewESClient(cfg.e.host, cfg.e.port)
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	repo, err := elastic.NewRepository(ESClient, cfg.e.index) // "products"
 	if err != nil {
-		return
+		panic(err)
 	}
 
 	redisClient, err := cache.NewRedisClient(cfg.r.user, cfg.r.password, cfg.r.host, cfg.r.port, cfg.r.db)
 	if err != nil {
-		return
+		panic(err)
 	}
 	cacher := cache.NewCacher(redisClient, cfg.r.ttl)
 
@@ -35,26 +33,27 @@ func main() {
 	app := application.NewService(repo, cacher)
 
 	// initialize drivers
-	rabbitConn, err := rabbit.Dial(cfg.mq.user, cfg.mq.pass, cfg.mq.host, cfg.mq.vhost)
+	rabbitConn, err := rabbit.Dial(cfg.mq.user, cfg.mq.pass, cfg.mq.host, cfg.mq.port, cfg.mq.vhost)
 	if err != nil {
-		return
+		panic(err)
 	}
 	rabbitClient := rabbit.NewClient(rabbitConn)
 
-	consumer := rabbitmq.NewConsumer(rabbitClient, app.Command)
+	consumer, err := rabbitmq.NewConsumer(rabbitClient, cfg.mq.exchange, cfg.mq.queue, cfg.mq.binding, app.Command)
+	if err != nil {
+		panic(err)
+	}
+
 	srv := handler.NewHandler(app.Query)
 
 	// start server
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
 	go func() {
-		if err = consumer.Consume(ctx, cfg.mq.queue); err != nil {
-			return
+		if err = consumer.Consume(); err != nil {
+			panic(err)
 		}
 	}()
 
 	if err = srv.Run(cfg.h.addr()); err != nil {
-		return
+		panic(err)
 	}
 }

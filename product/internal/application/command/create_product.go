@@ -2,61 +2,83 @@ package command
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"github.com/ziliscite/cqrs_product/internal/domain/product"
 	"github.com/ziliscite/cqrs_product/internal/ports"
 )
 
-type CreateProduct struct {
+type CreateProductEvent struct {
 	Name     string
 	Category string
 	Price    float64
 }
 
-func (p CreateProduct) Validate() map[string]error {
-	errs := make(map[string]error)
-	if p.Name == "" {
-		errs["name"] = errors.New("product name is required")
+func NewCreateProduct(name, category string, price float64) (CreateProductEvent, map[string]string) {
+	var cp CreateProductEvent
+
+	errs := make(map[string]string)
+	if name == "" {
+		errs["name"] = "product name is required"
 	}
 
-	if p.Category == "" {
-		errs["category"] = errors.New("product category is required")
+	if category == "" {
+		errs["category"] = "product category is required"
 	}
 
-	if p.Price <= 0 {
-		errs["price"] = errors.New("product price must be greater than zero")
+	if price <= 0 {
+		errs["price"] = "product price must be greater than zero"
 	}
 
 	if len(errs) > 0 {
-		return errs
+		return cp, errs
 	}
 
-	return nil
+	cp.Name = name
+	cp.Category = category
+	cp.Price = price
+
+	return cp, nil
+}
+
+type CreateProductRequest struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Price    float64 `json:"price"`
+	Category string  `json:"category"`
 }
 
 type CreateProductHandler interface {
-	Handle(ctx context.Context, cmd CreateProduct) error
+	Handle(ctx context.Context, cmd CreateProductEvent) error
 }
 
 type createProductHandler struct {
 	repo ports.Repository
-	pub  ports.Publisher[*product.Product]
+	pub  ports.Publisher
 }
 
-func NewCreateProductHandler(repo ports.Repository, producer ports.Publisher[*product.Product]) CreateProductHandler {
+func NewCreateProductHandler(repo ports.Repository, producer ports.Publisher) CreateProductHandler {
 	return &createProductHandler{repo: repo, pub: producer}
 }
 
-func (h *createProductHandler) Handle(ctx context.Context, cmd CreateProduct) error {
+func (h *createProductHandler) Handle(ctx context.Context, cmd CreateProductEvent) error {
 	p, err := product.New(cmd.Name, cmd.Category, cmd.Price)
 	if err != nil {
 		return err
 	}
 
-	e := product.NewEvent(product.Create, p)
-	if err = h.pub.Publish(ctx, e); err != nil {
+	if err = h.repo.Create(ctx, p); err != nil {
 		return err
 	}
 
-	return h.repo.Create(ctx, p)
+	msg, err := json.Marshal(CreateProductRequest{
+		ID:       p.ID(),
+		Name:     p.Name(),
+		Price:    p.Price(),
+		Category: p.Category(),
+	})
+	if err != nil {
+		return err
+	}
+
+	return h.pub.Publish(ctx, msg, "create")
 }

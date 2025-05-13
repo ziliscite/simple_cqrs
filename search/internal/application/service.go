@@ -14,7 +14,7 @@ type Command struct {
 
 func NewCommand(repo ports.WriteRepository, cacher ports.CacheInvalidator) *Command {
 	return &Command{
-		Create: command.NewCreateProductHandler(repo),
+		Create: command.NewCreateProductHandler(repo, cacher),
 		Update: command.NewUpdateProductHandler(repo, cacher),
 		Delete: command.NewDeleteProductHandler(repo, cacher),
 	}

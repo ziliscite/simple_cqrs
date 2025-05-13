@@ -6,7 +6,6 @@ import (
 	"github.com/ziliscite/cqrs_product/internal/adapters/postgresql"
 	"github.com/ziliscite/cqrs_product/internal/adapters/rabbitmq"
 	"github.com/ziliscite/cqrs_product/internal/application"
-	"github.com/ziliscite/cqrs_product/internal/domain/product"
 	"github.com/ziliscite/cqrs_product/pkg/postgres"
 	"github.com/ziliscite/cqrs_product/pkg/rabbit"
 	"time"
@@ -24,7 +23,7 @@ func main() {
 	}
 	defer db.Close()
 
-	mq, err := rabbit.Dial(cfg.mq.user, cfg.mq.pass, cfg.mq.host, cfg.mq.vhost)
+	mq, err := rabbit.Dial(cfg.mq.user, cfg.mq.pass, cfg.mq.host, cfg.mq.port, cfg.mq.vhost)
 	if err != nil {
 		panic(err)
 	}
@@ -33,17 +32,12 @@ func main() {
 	pub := rabbit.NewClient(mq)
 	repo := postgresql.NewRepository(db)
 
-	cu, err := rabbitmq.NewProducer[*product.Product](pub, cfg.mq.exchange, cfg.mq.queue, cfg.mq.binding)
+	cu, err := rabbitmq.NewProducer(pub, cfg.mq.exchange, cfg.mq.queue, cfg.mq.binding)
 	if err != nil {
 		panic(err)
 	}
 
-	d, err := rabbitmq.NewProducer[product.ID](pub, cfg.mq.exchange, cfg.mq.queue, cfg.mq.binding)
-	if err != nil {
-		panic(err)
-	}
-
-	app := application.NewService(repo, cu, d)
+	app := application.NewService(repo, cu)
 	srv := handler.NewHandler(app)
 
 	if err = srv.Run(cfg.h.addr()); err != nil {

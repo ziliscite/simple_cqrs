@@ -43,7 +43,7 @@ func (h *searchProductHandler) Handle(ctx context.Context, query SearchProduct) 
 	}
 
 	// if hit, return
-	if products != nil {
+	if products != nil && len(products) > 0 {
 		return products, nil
 	}
 

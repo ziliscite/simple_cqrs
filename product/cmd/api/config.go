@@ -25,6 +25,7 @@ type DB struct {
 }
 
 func (d DB) dsn() string {
+	// postgres://jack:secret@pg.example.com:5432/mydb?sslmode=verify-ca&pool_max_conns=10&pool_max_conn_lifetime=1h30m
 	dsn := "postgres://" + d.user + ":" + d.pass + "@" + d.host + ":" + d.port + "/" + d.db
 	if !d.ssl {
 		return dsn + "?sslmode=disable"
@@ -34,6 +35,7 @@ func (d DB) dsn() string {
 
 type MQ struct {
 	host  string
+	port  string
 	user  string
 	pass  string
 	vhost string
@@ -66,7 +68,7 @@ func getConfig() Config {
 
 		var ssl bool
 		sslStr := os.Getenv("POSTGRES_SSL")
-		if sslStr == "TRUE" {
+		if sslStr == "enable" {
 			ssl = true
 		} else {
 			ssl = false
@@ -74,6 +76,7 @@ func getConfig() Config {
 		flag.BoolVar(&instance.db.ssl, "db-ssl", ssl, "Database ssl")
 
 		flag.StringVar(&instance.mq.host, "mq-host", os.Getenv("RABBITMQ_HOST"), "RabbitMQ host")
+		flag.StringVar(&instance.mq.port, "mq-port", os.Getenv("RABBITMQ_PORT"), "RabbitMQ port")
 		flag.StringVar(&instance.mq.user, "mq-user", os.Getenv("RABBITMQ_USER"), "RabbitMQ user")
 		flag.StringVar(&instance.mq.pass, "mq-pass", os.Getenv("RABBITMQ_PASSWORD"), "RabbitMQ password")
 		flag.StringVar(&instance.mq.vhost, "mq-vhost", os.Getenv("RABBITMQ_VHOST"), "RabbitMQ vhost")

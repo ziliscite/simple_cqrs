@@ -2,57 +2,90 @@ package command
 
 import (
 	"context"
-	"errors"
+	"encoding/json"
 	"github.com/ziliscite/cqrs_product/internal/domain/product"
 	"github.com/ziliscite/cqrs_product/internal/ports"
 )
 
-type UpdateProduct struct {
-	Product product.Product
+type UpdateProductEvent struct {
+	ID       string
+	Name     string
+	Category string
+	Price    float64
 }
 
-func (cmd UpdateProduct) Validate() map[string]error {
-	errs := make(map[string]error)
-	if cmd.Product.ID() == "" {
-		errs["id"] = errors.New("product id is required")
+func NewUpdateProduct(id, name, category string, price float64) (UpdateProductEvent, map[string]string) {
+	var up UpdateProductEvent
+
+	errs := make(map[string]string)
+	if id == "" {
+		errs["id"] = "product id is required"
 	}
 
-	if cmd.Product.Name() == "" {
-		errs["name"] = errors.New("product name is required")
+	if name == "" {
+		errs["name"] = "product name is required"
 	}
 
-	if cmd.Product.Category() == "" {
-		errs["category"] = errors.New("product category is required")
+	if category == "" {
+		errs["category"] = "product category is required"
 	}
 
-	if cmd.Product.Price() == 0 {
-		errs["price"] = errors.New("product price is required")
+	if price <= 0 {
+		errs["price"] = "product price must be greater than zero"
 	}
 
 	if len(errs) > 0 {
-		return errs
+		return up, errs
 	}
-	return nil
+
+	up.ID = id
+	up.Name = name
+	up.Category = category
+	up.Price = price
+
+	return up, nil
+}
+
+type UpdateProductRequest struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Price    float64 `json:"price"`
+	Category string  `json:"category"`
 }
 
 type UpdateProductHandler interface {
-	Handle(ctx context.Context, cmd UpdateProduct) error
+	Handle(ctx context.Context, cmd UpdateProductEvent) error
 }
 
 type updateProductHandler struct {
-	repo     ports.Repository
-	producer ports.Publisher[*product.Product]
+	repo ports.Repository
+	pub  ports.Publisher
 }
 
-func NewUpdateProductHandler(repo ports.Repository, producer ports.Publisher[*product.Product]) UpdateProductHandler {
-	return &updateProductHandler{repo: repo, producer: producer}
+func NewUpdateProductHandler(repo ports.Repository, producer ports.Publisher) UpdateProductHandler {
+	return &updateProductHandler{repo: repo, pub: producer}
 }
 
-func (h *updateProductHandler) Handle(ctx context.Context, cmd UpdateProduct) error {
-	e := product.NewEvent(product.Update, &cmd.Product)
-	if err := h.producer.Publish(ctx, e); err != nil {
+func (h *updateProductHandler) Handle(ctx context.Context, cmd UpdateProductEvent) error {
+	p, err := product.New(cmd.Name, cmd.Category, cmd.Price)
+	if err != nil {
+		return err
+	}
+	p.SetID(cmd.ID)
+
+	if err = h.repo.Update(ctx, p); err != nil {
 		return err
 	}
 
-	return h.repo.Update(ctx, &cmd.Product)
+	msg, err := json.Marshal(UpdateProductRequest{
+		ID:       p.ID(),
+		Name:     p.Name(),
+		Price:    p.Price(),
+		Category: p.Category(),
+	})
+	if err != nil {
+		return err
+	}
+
+	return h.pub.Publish(ctx, msg, "update")
 }

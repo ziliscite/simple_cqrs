@@ -2,11 +2,10 @@ package command
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
-	"fmt"
-	"github.com/ziliscite/cqrs_search/internal/domain/product"
-
-	"github.com/ziliscite/cqrs_search/internal/ports"
+	"github.com/ziliscite/cqrs_product/internal/domain/product"
+	"github.com/ziliscite/cqrs_product/internal/ports"
 )
 
 type UpdateProductEvent struct {
@@ -16,7 +15,7 @@ type UpdateProductEvent struct {
 	Price    float64
 }
 
-func NewUpdateProduct(id, name, category string, price float64) (UpdateProductEvent, Errs) {
+func NewUpdateProduct(id, name, category string, price float64) (UpdateProductEvent, map[string]error) {
 	var up UpdateProductEvent
 
 	errs := make(map[string]error)
@@ -48,26 +47,30 @@ func NewUpdateProduct(id, name, category string, price float64) (UpdateProductEv
 	return up, nil
 }
 
+type UpdateProductRequest struct {
+	ID       string  `json:"id"`
+	Name     string  `json:"name"`
+	Price    float64 `json:"price"`
+	Category string  `json:"category"`
+}
+
 type UpdateProductHandler interface {
 	Handle(ctx context.Context, cmd UpdateProductEvent) error
 }
 
 type updateProductHandler struct {
-	repo ports.WriteRepository
-	ch   ports.CacheInvalidator
+	repo ports.Repository
+	pub  ports.Publisher
 }
 
-func NewUpdateProductHandler(repo ports.WriteRepository, cache ports.CacheInvalidator) UpdateProductHandler {
-	return &updateProductHandler{
-		repo: repo,
-		ch:   cache,
-	}
+func NewUpdateProductHandler(repo ports.Repository, producer ports.Publisher) UpdateProductHandler {
+	return &updateProductHandler{repo: repo, pub: producer}
 }
 
 func (h *updateProductHandler) Handle(ctx context.Context, cmd UpdateProductEvent) error {
 	p, err := product.New(cmd.Name, cmd.Category, cmd.Price)
 	if err != nil {
-		return fmt.Errorf("failed to create product: %w", err)
+		return err
 	}
 	p.SetID(cmd.ID)
 
@@ -75,9 +78,15 @@ func (h *updateProductHandler) Handle(ctx context.Context, cmd UpdateProductEven
 		return err
 	}
 
-	if err = h.ch.InvalidateByKey(ctx, fmt.Sprintf("product:%s", p.ID())); err != nil {
+	msg, err := json.Marshal(UpdateProductRequest{
+		ID:       p.ID(),
+		Name:     p.Name(),
+		Price:    p.Price(),
+		Category: p.Category(),
+	})
+	if err != nil {
 		return err
 	}
 
-	return nil
+	return h.pub.Publish(ctx, msg, "update")
 }

@@ -14,7 +14,7 @@ services:
     networks:
       - my_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user -d appdb"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -76,6 +76,71 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
+  product_service:
+    build:
+      context: ./product
+      dockerfile: product.dockerfile
+    container_name: product
+    ports:
+      - "8080:8080"
+    environment:
+      - HTTP_HOST=${PRODUCT_HOST}
+      - HTTP_PORT=${PRODUCT_PORT}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_SSL=${POSTGRES_SSL}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
+      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+      - RABBITMQ_BINDING=${RABBITMQ_BINDING}
+      - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE}
+    depends_on:
+      - postgres
+      - rabbitmq
+    networks:
+      - my_network
+
+  search_service:
+    build:
+      context: ./search
+      dockerfile: search.dockerfile
+    container_name: search
+    ports:
+      - "3000:3000"
+    environment:
+      - HTTP_HOST=${SEARCH_HOST}
+      - HTTP_PORT=${SEARCH_PORT}
+      - RABBITMQ_USER=${RABBITMQ_USER}
+      - RABBITMQ_PASSWORD=${RABBITMQ_PASSWORD}
+      - RABBITMQ_HOST=${RABBITMQ_HOST}
+      - RABBITMQ_PORT=${RABBITMQ_PORT}
+      - RABBITMQ_VHOST=${RABBITMQ_VHOST}
+      - RABBITMQ_QUEUE=${RABBITMQ_QUEUE}
+      - RABBITMQ_BINDING=${RABBITMQ_BINDING}
+      - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE}
+      - ELASTICSEARCH_HOST=${ELASTICSEARCH_HOST}
+      - ELASTICSEARCH_PORT=${ELASTICSEARCH_PORT}
+      - ELASTICSEARCH_INDEX=${ELASTICSEARCH_INDEX}
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+      - REDIS_USER=${REDIS_USER}
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
+      - REDIS_DATABASE=${REDIS_DATABASE}
+      - REDIS_TTL=${REDIS_TTL}
+    depends_on:
+      - rabbitmq
+      - elasticsearch
+      - redis
+      - product_service
+    networks:
+      - my_network
 
 volumes:
   postgres_data:

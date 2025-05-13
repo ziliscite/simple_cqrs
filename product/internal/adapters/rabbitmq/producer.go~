@@ -5,7 +5,6 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 	"github.com/ziliscite/cqrs_product/internal/ports"
 	"github.com/ziliscite/cqrs_product/pkg/rabbit"
-	"log"
 )
 
 type producer struct {
@@ -60,8 +59,6 @@ func (p *producer) Publish(ctx context.Context, payload []byte, event string) er
 		return err
 	}
 	defer p.c.Put(ch)
-
-	log.Println("publishing", event, "to", p.cfg.queue)
 
 	return p.c.SendDeferredJSON(ctx, ch, p.cfg.exchange, p.cfg.binding, payload, amqp091.Table{
 		"event_type": event,

@@ -13,7 +13,7 @@ import (
 
 func NewESClient(host, port string) (*elasticsearch.Client, error) {
 	cfg := elasticsearch.Config{
-		Addresses: []string{host + ":" + port},
+		Addresses: []string{"http://" + host + ":" + port},
 	}
 
 	return elasticsearch.NewClient(cfg)

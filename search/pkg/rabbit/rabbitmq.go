@@ -14,9 +14,9 @@ import (
 )
 
 // Dial connects to RabbitMQ and returns a new connection.
-func Dial(username, password, host, vhost string) (*amqp.Connection, error) {
+func Dial(username, password, host, port, vhost string) (*amqp.Connection, error) {
 	// Set up the Connection to RabbitMQ host using AMQP
-	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s/%s", username, password, host, vhost))
+	conn, err := amqp.Dial(fmt.Sprintf("amqp://%s:%s@%s:%s/%s", username, password, host, port, vhost))
 	if err != nil {
 		return nil, err
 	}

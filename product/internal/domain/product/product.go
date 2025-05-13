@@ -43,6 +43,10 @@ func New(name, category string, price float64) (*Product, error) {
 	}, nil
 }
 
+func (p *Product) SetID(id string) {
+	p.id = ID(id)
+}
+
 func (p *Product) ID() string {
 	return p.id.String()
 }

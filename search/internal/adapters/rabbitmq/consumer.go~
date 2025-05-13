@@ -50,7 +50,7 @@ func NewConsumer(c *rabbit.Client, exchange, queue, binding string, cmd *applica
 }
 
 func (c *consumer) Consume() error {
-	blocking := make(chan struct{})
+	var blocking chan struct{}
 
 	ch, err := c.c.Channel()
 	if err != nil {
@@ -85,7 +85,6 @@ func (c *consumer) Consume() error {
 	}()
 
 	log.Printf("Waiting for messages")
-	<-blocking
 
 	log.Printf("Stopping consumer")
 	return nil

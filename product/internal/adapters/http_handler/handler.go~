@@ -32,11 +32,6 @@ func (h *handler) setupRoutes() {
 	h.en.POST("/products", h.CreateProduct)
 	h.en.PATCH("/products/:id", h.UpdateProduct)
 	h.en.DELETE("/products/:id", h.DeleteProduct)
-
-	// health check
-	h.en.GET("/health", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{"status": "ok"})
-	})
 }
 
 func (h *handler) CreateProduct(c *gin.Context) {

@@ -1,6 +1,7 @@
 package product
 
 import (
+	"encoding/json"
 	"errors"
 	"github.com/google/uuid"
 )
@@ -47,6 +48,10 @@ func (p *Product) ID() string {
 	return p.id.String()
 }
 
+func (p *Product) SetID(id string) {
+	p.id = ID(id)
+}
+
 func (p *Product) Name() string {
 	return p.name
 }
@@ -65,4 +70,41 @@ func (p *Product) Tags() []string {
 		"tag:category:" + p.Category(),
 		"tag:name:" + p.Name(),
 	}
+}
+
+func (p *Product) MarshalJSON() ([]byte, error) {
+	return json.Marshal(&struct {
+		ID       ID      `json:"id"`
+		Name     string  `json:"name"`
+		Price    float64 `json:"price"`
+		Category string  `json:"category"`
+	}{
+		ID:       p.id,
+		Name:     p.name,
+		Price:    p.price,
+		Category: p.category,
+	})
+}
+
+func (p *Product) UnmarshalJSON(data []byte) error {
+	// Create a temporary struct with exported fields
+	var temp struct {
+		ID       ID      `json:"id"`
+		Name     string  `json:"name"`
+		Price    float64 `json:"price"`
+		Category string  `json:"category"`
+	}
+
+	// Unmarshal into the temporary struct
+	if err := json.Unmarshal(data, &temp); err != nil {
+		return err
+	}
+
+	// Set the unexported fields from the temporary struct
+	p.id = temp.ID
+	p.name = temp.Name
+	p.price = temp.Price
+	p.category = temp.Category
+
+	return nil
 }
