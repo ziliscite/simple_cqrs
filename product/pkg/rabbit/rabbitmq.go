@@ -174,23 +174,18 @@ func (p *Client) SendJSON(ctx context.Context, ch *amqp.Channel, exchange, routi
 	})
 }
 
-// SendDeferred is used to publish a payload onto an exchange with a given routingkey
 func (p *Client) SendDeferred(ctx context.Context, ch *amqp.Channel, exchange, routingKey string, options amqp.Publishing) error {
 	confirmation, err := ch.PublishWithDeferredConfirmWithContext(ctx,
 		exchange,   // exchange
 		routingKey, // routing key
-		// Mandatory is used when we HAVE to have the message return an error, if there is no route or queue then
-		// setting this to true will make the message bounce back
-		// If this is False, and the message fails to deliver, it will be dropped
-		true,    // mandatory
-		false,   // immediate
-		options, // amqp publishing struct
+		true,       // mandatory
+		false,      // immediate
+		options,
 	)
 	if err != nil {
 		return err
 	}
 
-	// Blocks until ACK from Server is received
 	confirmation.Wait()
 	return nil
 }

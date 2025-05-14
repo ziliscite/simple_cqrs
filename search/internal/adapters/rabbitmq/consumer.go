@@ -9,9 +9,8 @@ import (
 	"github.com/ziliscite/cqrs_search/internal/application/command"
 	"github.com/ziliscite/cqrs_search/internal/ports"
 	"github.com/ziliscite/cqrs_search/pkg/rabbit"
-	"golang.org/x/sync/errgroup"
 	"log"
-	"time"
+	"sync"
 )
 
 type consumer struct {
@@ -50,44 +49,39 @@ func NewConsumer(c *rabbit.Client, exchange, queue, binding string, cmd *applica
 }
 
 func (c *consumer) Consume() error {
-	blocking := make(chan struct{})
-
 	ch, err := c.c.Channel()
 	if err != nil {
 		return err
 	}
+	defer c.c.Put(ch)
 
-	ctx := context.Background()
-	ctx, cancel := context.WithTimeout(ctx, 15*time.Second)
-	defer cancel()
+	if err = ch.Qos(1, 0, false); err != nil {
+		return err
+	}
 
-	bus, err := c.c.Consume(ctx, ch, "product_queue", "product_event", false)
+	bus, err := c.c.Consume(context.Background(), ch, "product_queue", "product_event", false)
 	if err != nil {
 		return err
 	}
 
-	g, ctx := errgroup.WithContext(ctx)
-	g.SetLimit(10)
+	var wg sync.WaitGroup
+	for msg := range bus {
+		m := msg
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			log.Printf("New Message: %v", m)
 
-	go func() {
-		for msg := range bus {
-			m := msg
-			g.Go(func() error {
-				log.Printf("New Message: %v", msg)
+			if err = c.process(context.Background(), &m); err != nil {
+				m.Nack(false, !m.Redelivered)
+				return
+			}
+			
+			m.Ack(false)
+		}()
+	}
 
-				if err = c.process(ctx, &m); err != nil {
-					return m.Nack(false, !m.Redelivered)
-				}
-
-				return m.Ack(false)
-			})
-		}
-	}()
-
-	log.Printf("Waiting for messages")
-	<-blocking
-
-	log.Printf("Stopping consumer")
+	wg.Wait()
 	return nil
 }
 
@@ -132,6 +126,7 @@ func (c *consumer) CreateProduct(ctx context.Context, payload []byte) error {
 		return errs
 	}
 
+	log.Printf("CreateProduct: %v %v %v %v", cmd.ID, cmd.Name, cmd.Category, cmd.Price)
 	return c.cmd.Create.Handle(ctx, cmd)
 }
 

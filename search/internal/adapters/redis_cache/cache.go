@@ -8,6 +8,7 @@ import (
 	"github.com/redis/go-redis/v9"
 	"github.com/ziliscite/cqrs_search/internal/domain/product"
 	"github.com/ziliscite/cqrs_search/internal/ports"
+	"log"
 	"strconv"
 	"time"
 )
@@ -49,7 +50,11 @@ func (c *cacher) Get(ctx context.Context, key string) ([]product.Product, error)
 	if err != nil {
 		return nil, err
 	}
+	if raw == "" || raw == "{}" || raw == "[]" {
+		return nil, nil // cache miss
+	}
 
+	log.Printf("cache hit: %s, raw: %s", key, raw)
 	var products []product.Product
 	if err = json.Unmarshal([]byte(raw), &products); err != nil {
 		return nil, err
@@ -64,6 +69,8 @@ func (c *cacher) Set(ctx context.Context, key string, products []product.Product
 	if err != nil {
 		return err
 	}
+
+	log.Printf("cache set: %s, raw: %s", key, data)
 
 	pipe := c.client.TxPipeline()
 	for _, p := range tags {

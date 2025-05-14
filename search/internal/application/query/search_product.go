@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ziliscite/cqrs_search/internal/domain/product"
 	"github.com/ziliscite/cqrs_search/internal/ports"
+	"log"
 )
 
 type SearchProduct struct {
@@ -37,24 +38,27 @@ func (h *searchProductHandler) Handle(ctx context.Context, query SearchProduct) 
 	key, tags := query.search.Key()
 
 	// check cache
-	products, err := h.ch.Get(ctx, key)
+	cached, err := h.ch.Get(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cached products: %w", err)
 	}
 
 	// if hit, return
-	if products != nil && len(products) > 0 {
-		return products, nil
+	if cached != nil && len(cached) > 0 {
+		log.Printf("hit cache: %s", key)
+		return cached, nil
 	}
 
 	// cache miss, search
-	products, err = h.repo.Search(ctx, query.search)
+	log.Printf("miss cache: %s", key)
+	products, err := h.repo.Search(ctx, query.search)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search products: %w", err)
 	}
 
 	// add more tags
 	for _, p := range products {
+		log.Printf("product: %s %s %s $%.2f", p.ID(), p.Name(), p.Category(), p.Price())
 		tags = append(tags, fmt.Sprintf("tag:product:%s", p.ID()))
 	}
 

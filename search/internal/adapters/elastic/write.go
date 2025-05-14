@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
+	"log"
 
 	"github.com/ziliscite/cqrs_search/internal/domain/product"
 )
@@ -28,6 +29,9 @@ func (r *repo) Create(ctx context.Context, p *product.Product) error {
 		return err
 	}
 	defer res.Body.Close()
+
+	log.Printf("create product: %s %s %s $%.2f", p.ID(), p.Name(), p.Category(), p.Price())
+	log.Printf("index response: %s", res.String())
 
 	if res.IsError() {
 		return fmt.Errorf("index error: %s", res.String())

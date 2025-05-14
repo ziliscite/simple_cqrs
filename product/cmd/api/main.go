@@ -23,6 +23,10 @@ func main() {
 	}
 	defer db.Close()
 
+	if err = postgres.AutoMigrate(cfg.db.dsn()); err != nil {
+		return
+	}
+
 	mq, err := rabbit.Dial(cfg.mq.user, cfg.mq.pass, cfg.mq.host, cfg.mq.port, cfg.mq.vhost)
 	if err != nil {
 		panic(err)

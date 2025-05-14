@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/ziliscite/cqrs_search/internal/domain/product"
 	"github.com/ziliscite/cqrs_search/internal/ports"
+	"log"
 )
 
 type CreateProductEvent struct {
@@ -39,6 +40,7 @@ func NewCreateProduct(id, name, category string, price float64) (CreateProductEv
 		return cp, errs
 	}
 
+	cp.ID = id
 	cp.Name = name
 	cp.Category = category
 	cp.Price = price
@@ -66,6 +68,7 @@ func (h *createProductHandler) Handle(ctx context.Context, cmd CreateProductEven
 	}
 	p.SetID(cmd.ID)
 
+	log.Printf("product: %s %s %s $%.2f", p.ID(), p.Name(), p.Category(), p.Price())
 	if err = h.repo.Create(ctx, p); err != nil {
 		return fmt.Errorf("failed to create product: %w", err)
 	}

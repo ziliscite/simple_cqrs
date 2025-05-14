@@ -76,7 +76,7 @@ func (h *handler) SearchProduct(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"products": products})
+	c.JSON(http.StatusOK, products)
 }
 
 func (h *handler) extractQueryParams(c *gin.Context) *product.Search {

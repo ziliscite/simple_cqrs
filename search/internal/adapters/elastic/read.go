@@ -6,12 +6,15 @@ import (
 	"fmt"
 	"github.com/elastic/go-elasticsearch/v8/esapi"
 	"io"
+	"log"
 	"strings"
 
 	"github.com/ziliscite/cqrs_search/internal/domain/product"
 )
 
 func (r *repo) Search(ctx context.Context, opts *product.Search) ([]product.Product, error) {
+	log.Printf("query: %s, %s", opts.Name(), opts.Category())
+
 	// Build bool query
 	boolQuery := map[string]interface{}{"bool": map[string]interface{}{
 		"must":   []interface{}{},
@@ -62,15 +65,18 @@ func (r *repo) Search(ctx context.Context, opts *product.Search) ([]product.Prod
 
 	// sort
 	field, by := opts.SortBy()
-	sortClause := fmt.Sprintf("%s:%s", field, by)
+	var sortOpts []string
+	if field != "" {
+		sortOpts = []string{fmt.Sprintf("%s:%s", field, by)}
+	}
 
-	// build search request
+	log.Printf("query: %s", string(query))
 	req := esapi.SearchRequest{
 		Index:          []string{r.idx},
 		Body:           io.NopCloser(strings.NewReader(string(query))),
 		From:           &from,
 		Size:           &size,
-		Sort:           []string{sortClause},
+		Sort:           sortOpts, // will only be non-empty if field != ""
 		TrackTotalHits: true,
 	}
 
@@ -80,6 +86,12 @@ func (r *repo) Search(ctx context.Context, opts *product.Search) ([]product.Prod
 		return nil, err
 	}
 	defer res.Body.Close()
+
+	if res.IsError() {
+		return nil, fmt.Errorf("error getting document: %s", res.String())
+	}
+
+	log.Printf("response: %s", res.String())
 
 	// parse hits
 	var esResp struct {
@@ -95,6 +107,7 @@ func (r *repo) Search(ctx context.Context, opts *product.Search) ([]product.Prod
 
 	prods := make([]product.Product, len(esResp.Hits.Hits))
 	for i, h := range esResp.Hits.Hits {
+		log.Printf("product: %v", h.Source)
 		prods[i] = h.Source
 	}
 	return prods, nil

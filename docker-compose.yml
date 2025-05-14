@@ -102,8 +102,10 @@ services:
       - RABBITMQ_BINDING=${RABBITMQ_BINDING}
       - RABBITMQ_EXCHANGE=${RABBITMQ_EXCHANGE}
     depends_on:
-      - postgres
-      - rabbitmq
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     networks:
       - my_network
 
@@ -135,10 +137,14 @@ services:
       - REDIS_DATABASE=${REDIS_DATABASE}
       - REDIS_TTL=${REDIS_TTL}
     depends_on:
-      - rabbitmq
-      - elasticsearch
-      - redis
-      - product_service
+      rabbitmq:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      product_service:
+        condition: service_started
     networks:
       - my_network
 
